@@ -2,8 +2,13 @@ var grid, next;
 
 var dA = 1; // diffusion rate of chemical A
 var dB = 0.5; // diffusion rate of chemical B
-var feed = 0.055; // how fast chem A is being added.
+var f = 0.055; // how fast chem A is being added / feed rate.
 var k = 0.062; // kill rate - how fast B is being removed
+
+// "mitosis" simulation
+f=.0367, k=.0649;
+// "coral growth" simulation
+// f=.0545, k=.062;
 
 var dT = 1;
 
@@ -18,27 +23,35 @@ setup = () => {
     next[i] = [];
     for (var j = 0; j < height; j++) {
       // each spot in grid starts out with 0 of chemical A and 0 of chemical B
-      grid[i][j] = { a: random(1), b: random(1) };
-      next[i][j] = { a: 0, b: 0 };
+      grid[i][j] = { a: 1, b: 0 };
+      next[i][j] = { a: 1, b: 0 };
     }
   }
+
+  for (var i = 290; i < 310; i++) {
+    for (var j = 290; j < 310; j++) {
+      // each spot in grid starts out with 0 of chemical A and 0 of chemical B
+      grid[i][j].b = 1;
+    }
+  }
+
 }
 
 draw = () => {
   background(51);
-
   for (var x = 1; x < width-1; x++) {
     for (var y = 1; y < height-1; y++) {
+
       var a = grid[x][y].a;
       var b = grid[x][y].b;
       next[x][y].a =  a +
                       ((dA * laplaceA(x,y)) -
                       (a * b * b) +
-                      (feed * (1 - a))) * dT;
+                      (f * (1 - a))) * dT;
       next[x][y].b =  b +
                       ((dB * laplaceB(x,y)) +
                       (a * b * b) -
-                      ((k + feed) * b)) * dT;
+                      ((k + f) * b)) * dT;
 
     }
   }
