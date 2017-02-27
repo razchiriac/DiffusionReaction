@@ -1,159 +1,94 @@
-var cols = 50;
-var rows = 50;
-var grid = new Array(cols);
+var grid, next;
 
-var openSet = [];
-var closedSet = [];
-var start;
-var end;
-var w, h;
-var path;
+var dA = 1; // diffusion rate of chemical A
+var dB = 0.5; // diffusion rate of chemical B
+var feed = 0.055; // how fast chem A is being added.
+var k = 0.062; // kill rate - how fast B is being removed
 
-removeFromArr = (a, e) => {
-  var i = a.lastIndexOf(e);
-  a.splice(i, 1);
-}
-
-heuristic = (a, b) => {
-  // get the euclidian distance between a & b
-  var d = dist(a.i, a.j, b.i, b.j);
-  // var d = abs(a.i, b.i) + abs(a.j, b.j);
-  return d;
-}
-
-function Spot(i,j) {
-  this.i = i;
-  this.j = j;
-  this.f = 0;
-  this.g = 0;
-  this.h = 0;
-  this.neighbors = [];
-  this.previous = undefined;
-  this.wall = false;
-  if (random(1) < 0.3) this.wall = true;
-}
-Spot.prototype.show = function(color) {
-  fill(color);
-  if (this.wall) {
-    fill(0);
-  }
-  noStroke();
-  rect(this.i * w,this.j * h, w - 1, h - 1);
-}
-Spot.prototype.addNeighbors = function(grid) {
-  var i = this.i;
-  var j = this.j;
-  if (i < cols - 1) {
-    this.neighbors.push(grid[i + 1][j]);
-  }
-  if (i > 0) {
-    this.neighbors.push(grid[i - 1][j]);
-  }
-  if (j < rows - 1) {
-    this.neighbors.push(grid[i][j + 1]);
-  }
-  if (j > 0) {
-    this.neighbors.push(grid[i][j - 1]);
-  }
-}
+var dT = 1;
 
 setup = () => {
-  createCanvas(500, 500);
-
-  w = width / cols;
-  h = height / rows;
-
-  for(var i = 0; i < cols; i++) {
-    grid[i] = new Array(rows);
-  }
-
-  for(var i = 0; i < cols; i++) {
-    for(var j = 0; j < rows; j++) {
-      grid[i][j] = new Spot(i,j);
+  createCanvas(600,600);
+  pixelDensity(1);
+  grid = []; // current generation
+  next = []; // next generation
+  // setup the grid
+  for (var i = 0; i < width; i++) {
+    grid[i] = [];
+    next[i] = [];
+    for (var j = 0; j < height; j++) {
+      // each spot in grid starts out with 0 of chemical A and 0 of chemical B
+      grid[i][j] = { a: random(1), b: random(1) };
+      next[i][j] = { a: 0, b: 0 };
     }
   }
-
-  for(var i = 0; i < cols; i++) {
-    for(var j = 0; j < rows; j++) {
-      grid[i][j].addNeighbors(grid);
-    }
-  }
-
-  start = grid[0][0];
-  end = grid[cols-1][rows-1];
-  start.wall = false;
-  end.wall = false;
-  openSet.push(start);
-
-  // console.table(grid);
-
 }
 
 draw = () => {
+  background(51);
 
-  if (openSet.length > 0) {
-    // we can keep going
-    var winner = 0;
-    for (var i = 0; i < openSet.length; i++) {
-      if (openSet[i].f < openSet[winner].f) {
-        winner = i;
-      }
-    }
-    var current = openSet[winner];
+  for (var x = 1; x < width-1; x++) {
+    for (var y = 1; y < height-1; y++) {
+      var a = grid[x][y].a;
+      var b = grid[x][y].b;
+      next[x][y].a =  a +
+                      ((dA * laplaceA(x,y)) -
+                      (a * b * b) +
+                      (feed * (1 - a))) * dT;
+      next[x][y].b =  b +
+                      ((dB * laplaceB(x,y)) +
+                      (a * b * b) -
+                      ((k + feed) * b)) * dT;
 
-    if (current === end) {
-      noLoop();
-      console.log("Done!");
-    }
-    removeFromArr(openSet, current);
-    closedSet.push(current);
-
-    var neighbors = current.neighbors;
-    neighbors.forEach((n,i) => {
-      if (!closedSet.includes(n) && !n.wall) {
-        var tempG = current.g + heuristic(n, current);
-        if (openSet.includes(n)) {
-          if (tempG < n.g) {
-            n.g = tempG;
-          }
-        } else {
-          n.g = tempG;
-          openSet.push(n);
-        }
-        n.h = heuristic(n,end);
-        n.f = n.g + n.h;
-        n.previous = current;
-      }
-    });
-
-  } else {
-    // no solution
-    console.log("No Solution.");
-  }
-
-  background(0);
-
-  for(var i = 0; i < cols; i++) {
-    for(var j = 0; j < rows; j++) {
-      grid[i][j].show(255);
     }
   }
-  for (var i = 0; i < closedSet.length; i++) {
-    closedSet[i].show(color(255,0,0));
-  }
-  for (var i = 0; i < openSet.length; i++) {
-    openSet[i].show(color(0,255,0));
-  }
-  // Find the path
-  path = [];
-  var temp = current;
-  path.push(temp);
-  while (temp.previous) {
-    path.push(temp.previous);
-    temp = temp.previous;
-  }
-  path.forEach(i => {
-    i.show(color(50,0,255));
-  })
 
+  loadPixels();
+
+  for (var x = 0; x < width; x++) {
+    for (var y = 0; y < height; y++) {
+      var pix = (x + y * width) * 4;
+      pixels[pix + 0] = next[x][y].a * 255;
+      pixels[pix + 1] = 0;
+      pixels[pix + 2] = next[x][y].b * 255;
+      pixels[pix + 3] = 255;
+    }
+  }
+  updatePixels();
+  swap();
+}
+
+swap = () => {
+  var temp = grid;
+  grid = next;
+  next = temp;
+}
+
+// The Laplacian is performed with a 3x3 convolution with center weight -1, adjacent neighbors .2, and diagonals .05.
+laplaceA = (x,y) => {
+  var sumA = 0;
+  sumA += grid[x][y].a * -1;
+  sumA += grid[x-1][y].a * 0.2;
+  sumA += grid[x+1][y].a * 0.2;
+  sumA += grid[x][y-1].a * 0.2;
+  sumA += grid[x][y+1].a * 0.2;
+  sumA += grid[x+1][y+1].a * 0.05;
+  sumA += grid[x+1][y-1].a * 0.05;
+  sumA += grid[x-1][y+1].a * 0.05;
+  sumA += grid[x-1][y-1].a * 0.05;
+  return sumA;
+}
+
+laplaceB = (x,y) => {
+  var sumB = 0;
+  sumB += grid[x][y].b * -1;
+  sumB += grid[x-1][y].b * 0.2;
+  sumB += grid[x+1][y].b * 0.2;
+  sumB += grid[x][y-1].b * 0.2;
+  sumB += grid[x][y+1].b * 0.2;
+  sumB += grid[x+1][y+1].b * 0.05;
+  sumB += grid[x+1][y-1].b * 0.05;
+  sumB += grid[x-1][y+1].b * 0.05;
+  sumB += grid[x-1][y-1].b * 0.05;
+  return sumB;
 }
