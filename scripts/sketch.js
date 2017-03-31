@@ -6,9 +6,9 @@ var f = 0.055; // how fast chem A is being added / feed rate.
 var k = 0.062; // kill rate - how fast B is being removed
 
 // "mitosis" simulation
-f=.0367, k=.0649;
+// f=.0367, k=.0649;
 // "coral growth" simulation
-// f=.0545, k=.062;
+f=.0545, k=.062;
 
 var dT = 1;
 
